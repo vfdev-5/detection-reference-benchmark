@@ -48,10 +48,15 @@ def classification_simple_pipeline_builder(*, input_type, api_version):
     if input_type == "Datapoint" and api_version == "v1":
         return None
 
+    use_torch_compile = False
     if api_version == "v1":
         transforms = transforms_v1
         RandomResizedCropWithoutResize = RandomResizedCropWithoutResizeV1
     elif api_version == "v2":
+        transforms = transforms_v2
+        RandomResizedCropWithoutResize = RandomResizedCropWithoutResizeV2
+    elif api_version == "compiled v2":
+        use_torch_compile = True
         transforms = transforms_v2
         RandomResizedCropWithoutResize = RandomResizedCropWithoutResizeV2
     else:
@@ -64,13 +69,13 @@ def classification_simple_pipeline_builder(*, input_type, api_version):
     elif input_type == "Datapoint":
         pipeline.append(transforms.ToImageTensor())
 
-    pipeline.extend(
-        [
-            RandomResizedCropWithoutResize(224),
-            transforms.Resize(224, antialias=True),
-            transforms.RandomHorizontalFlip(p=0.5),
-        ]
-    )
+    # pipeline.extend(
+    #     [
+    #         RandomResizedCropWithoutResize(224),
+    #         transforms.Resize(224, antialias=True),
+    #         transforms.RandomHorizontalFlip(p=0.5),
+    #     ]
+    # )
 
     if input_type == "PIL":
         pipeline.append(transforms.PILToTensor())
@@ -84,6 +89,9 @@ def classification_simple_pipeline_builder(*, input_type, api_version):
             ),
         ]
     )
+
+    if use_torch_compile:
+        pipeline[-1] = torch.compile(pipeline[-1])
 
     return Pipeline(pipeline)
 
